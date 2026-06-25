@@ -15,6 +15,8 @@ export default function Contact() {
     message: ''
   });
 
+  const [loading, setLoading] = useState(false);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -23,7 +25,7 @@ export default function Contact() {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name || !formData.email || !formData.phone || !formData.message) {
       setStatus({
@@ -34,19 +36,46 @@ export default function Contact() {
       return;
     }
 
-    // Simulate successful form submission
-    setStatus({
-      submitted: true,
-      error: false,
-      message: 'Thank you! Your connection request has been sent successfully. We will contact you shortly.'
-    });
-    setFormData({
-      name: '',
-      email: '',
-      phone: '',
-      serviceType: '',
-      message: ''
-    });
+    setLoading(true);
+    setStatus({ submitted: false, error: false, message: '' });
+
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        setStatus({
+          submitted: true,
+          error: false,
+          message: result.message || 'Thank you! Your connection request has been sent successfully. We will contact you shortly.'
+        });
+        setFormData({
+          name: '',
+          email: '',
+          phone: '',
+          serviceType: '',
+          message: ''
+        });
+      } else {
+        throw new Error(result.error || 'Failed to submit contact request.');
+      }
+    } catch (err) {
+      console.error('Form submission error:', err);
+      setStatus({
+        submitted: false,
+        error: true,
+        message: err.message || 'An unexpected error occurred. Please try again later.'
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -203,28 +232,34 @@ export default function Contact() {
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
                   <button
                     type="submit"
+                    disabled={loading}
                     style={{
-                      backgroundColor: '#0070f3',
+                      backgroundColor: loading ? '#a0aec0' : '#0070f3',
                       color: '#ffffff',
                       border: 'none',
                       borderRadius: '8px',
                       padding: '12px 36px',
                       fontSize: '15px',
                       fontWeight: '600',
-                      cursor: 'pointer',
-                      boxShadow: '0 4px 10px rgba(0, 112, 243, 0.25)',
-                      transition: 'var(--transition-smooth)'
+                      cursor: loading ? 'not-allowed' : 'pointer',
+                      boxShadow: loading ? 'none' : '0 4px 10px rgba(0, 112, 243, 0.25)',
+                      transition: 'var(--transition-smooth)',
+                      opacity: loading ? 0.8 : 1
                     }}
                     onMouseEnter={(e) => {
-                      e.target.style.backgroundColor = '#1e88e5';
-                      e.target.style.transform = 'translateY(-1px)';
+                      if (!loading) {
+                        e.target.style.backgroundColor = '#1e88e5';
+                        e.target.style.transform = 'translateY(-1px)';
+                      }
                     }}
                     onMouseLeave={(e) => {
-                      e.target.style.backgroundColor = '#0070f3';
-                      e.target.style.transform = 'translateY(0)';
+                      if (!loading) {
+                        e.target.style.backgroundColor = '#0070f3';
+                        e.target.style.transform = 'translateY(0)';
+                      }
                     }}
                   >
-                    Submit
+                    {loading ? 'Submitting...' : 'Submit'}
                   </button>
                 </div>
               </form>
